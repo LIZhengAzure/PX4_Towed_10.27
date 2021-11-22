@@ -1,0 +1,6 @@
+module_name: vision Position
+serial_config:
+    - command: vision_position start -d ${SERIAL_DEV}
+      port_config_param:
+        name: SENS_VIS_CFG
+        group: Sensors

@@ -181,6 +181,7 @@ set(msg_files
 	vehicle_torque_setpoint.msg
 	vehicle_trajectory_bezier.msg
 	vehicle_trajectory_waypoint.msg
+	vision_position.msg
 	vtol_vehicle_status.msg
 	wheel_encoders.msg
 	wind.msg
