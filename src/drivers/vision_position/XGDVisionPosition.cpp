@@ -107,7 +107,7 @@ int XGDVisionPosition::collect()
 						_distance_x = (_buffer[index + 2] << 8) | _buffer[index + 1];
 						_distance_y = (_buffer[index + 4] << 8) | _buffer[index + 3];
 						_distance_z = (_buffer[index + 6] << 8) | _buffer[index + 5];
-						printf("buff:%d %d %d %d %d %d\r\n",_buffer[1],_buffer[2],_buffer[3],_buffer[4],_buffer[5],_buffer[6]);
+						printf("distance_x:%d  y:%d z:%d\r\n",_distance_x,_distance_y,_distance_z);
 
 						vision_position_s report{};
 						report.vision_position_x = _distance_x;
