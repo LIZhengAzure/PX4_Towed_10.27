@@ -66,6 +66,7 @@
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/vision_position.h>
 
 using matrix::Eulerf;
 using matrix::Quatf;
@@ -105,6 +106,7 @@ private:
 	uORB::Subscription _manual_control_setpoint_sub{ORB_ID(manual_control_setpoint)};		/**< notification of manual control updates */
 	uORB::Subscription _rates_sp_sub{ORB_ID(vehicle_rates_setpoint)};		/**< vehicle rates setpoint */
 	uORB::Subscription _vcontrol_mode_sub{ORB_ID(vehicle_control_mode)};		/**< vehicle status subscription */
+	uORB::Subscription _vision_position_sub{ORB_ID(vision_position)};		       /**< vision position subscription */ //add 2022-2-11
 	uORB::Subscription _vehicle_land_detected_sub{ORB_ID(vehicle_land_detected)};	/**< vehicle land detected subscription */
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};			/**< vehicle status subscription */
 	uORB::Subscription _vehicle_rates_sub{ORB_ID(vehicle_angular_velocity)};
@@ -123,6 +125,7 @@ private:
 	vehicle_local_position_s		_local_pos {};		/**< local position */
 	vehicle_rates_setpoint_s		_rates_sp {};		/* attitude rates setpoint */
 	vehicle_status_s			_vehicle_status {};	/**< vehicle status */
+	vision_position_s			_vision_position {};	        /**< vision position */
 
 	perf_counter_t	_loop_perf;			/**< loop performance counter */
 
@@ -133,13 +136,23 @@ private:
 
 	float _airspeed_scaling{1.0f};
 
+
 	bool _landed{true};
 
 	float _battery_scale{1.0f};
 
+
 	bool _flag_control_attitude_enabled_last{false};
 
 	bool _is_tailsitter{false};
+
+	hrt_abstime _last_run_pos{0};
+	float _x_error,_y_error,_z_error;
+	float _x_control,_y_control,_z_control;
+	float _towed_y_integral{0};
+	float _towed_z_integral{0};
+
+	uint8_t _pre_nav_state{0};
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::FW_ACRO_X_MAX>) _param_fw_acro_x_max,
@@ -191,6 +204,7 @@ private:
 		(ParamFloat<px4::params::FW_RR_I>) _param_fw_rr_i,
 		(ParamFloat<px4::params::FW_RR_IMAX>) _param_fw_rr_imax,
 		(ParamFloat<px4::params::FW_RR_P>) _param_fw_rr_p,
+		(ParamFloat<px4::params::FW_RSP_OFF>) _param_fw_rsp_off,
 
 		(ParamBool<px4::params::FW_W_EN>) _param_fw_w_en,
 		(ParamFloat<px4::params::FW_W_RMAX>) _param_fw_w_rmax,
@@ -207,7 +221,18 @@ private:
 
 		(ParamFloat<px4::params::TRIM_PITCH>) _param_trim_pitch,
 		(ParamFloat<px4::params::TRIM_ROLL>) _param_trim_roll,
-		(ParamFloat<px4::params::TRIM_YAW>) _param_trim_yaw
+		(ParamFloat<px4::params::TRIM_YAW>) _param_trim_yaw,
+
+		(ParamFloat<px4::params::FW_TOWED_Y_P>) _param_towed_y_p,
+		(ParamFloat<px4::params::FW_TOWED_Y_I>) _param_towed_y_i,
+		(ParamFloat<px4::params::FW_TOWED_Y_D>) _param_towed_y_d,
+		(ParamFloat<px4::params::TOWED_Y_ILIMIT>) _param_towed_y_ilimit,
+		(ParamFloat<px4::params::FW_TOWED_Z_P>) _param_towed_z_p,
+		(ParamFloat<px4::params::FW_TOWED_Z_I>) _param_towed_z_i,
+		(ParamFloat<px4::params::FW_TOWED_Z_D>) _param_towed_z_d,
+		(ParamFloat<px4::params::TOWED_Z_ILIMIT>) _param_towed_z_ilimit
+
+
 	)
 
 	ECL_RollController		_roll_ctrl;
@@ -227,6 +252,7 @@ private:
 	void		vehicle_attitude_setpoint_poll();
 	void		vehicle_rates_setpoint_poll();
 	void		vehicle_land_detected_poll();
+	void 		control_position_yz(const float dt);
 
 	float 		get_airspeed_and_update_scaling();
 };

@@ -297,6 +297,7 @@ main_state_transition(const vehicle_status_s &status, const main_state_t new_mai
 	case commander_state_s::MAIN_STATE_MANUAL:
 	case commander_state_s::MAIN_STATE_STAB:
 	case commander_state_s::MAIN_STATE_ACRO:
+	case commander_state_s::MAIN_STATE_POSCTL:
 		ret = TRANSITION_CHANGED;
 		break;
 
@@ -309,17 +310,17 @@ main_state_transition(const vehicle_status_s &status, const main_state_t new_mai
 		}
 
 		break;
-
+	/*
 	case commander_state_s::MAIN_STATE_POSCTL:
 
-		/* need at minimum local position estimate */
+		// need at minimum local position estimate //
 		if (status_flags.condition_local_position_valid ||
 		    status_flags.condition_global_position_valid) {
 			ret = TRANSITION_CHANGED;
 		}
 
 		break;
-
+	*/
 	case commander_state_s::MAIN_STATE_AUTO_LOITER:
 
 		/* need global position estimate */

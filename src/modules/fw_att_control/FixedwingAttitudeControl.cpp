@@ -382,8 +382,11 @@ void FixedwingAttitudeControl::Run()
 			return;
 		}
 
-		control_flaps(dt);
+		//control_flaps(dt);
 
+		float towed_att_set_roll = 0.0f;
+		float towed_att_set_pitch = 0.0f;
+		//float towed_att_set_yaw = 0.0f;
 		/* decide if in stabilized or full manual control */
 		if (_vcontrol_mode.flag_control_rates_enabled) {
 
@@ -424,8 +427,17 @@ void FixedwingAttitudeControl::Run()
 			control_input.body_x_rate = rollspeed;
 			control_input.body_y_rate = pitchspeed;
 			control_input.body_z_rate = yawspeed;
-			control_input.roll_setpoint = _att_sp.roll_body;
-			control_input.pitch_setpoint = _att_sp.pitch_body;
+
+
+			if(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_POSCTL){
+				control_input.roll_setpoint = _att_sp.roll_body;
+				control_input.pitch_setpoint = _att_sp.pitch_body;
+
+			}else{
+				control_input.roll_setpoint  =  radians(_param_fw_rsp_off.get());
+				control_input.pitch_setpoint =  radians(_param_fw_psp_off.get());
+
+			}
 			control_input.yaw_setpoint = _att_sp.yaw_body;
 			control_input.airspeed_min = _param_fw_airspd_stall.get();
 			control_input.airspeed_max = _param_fw_airspd_max.get();
@@ -503,6 +515,8 @@ void FixedwingAttitudeControl::Run()
 					_roll_ctrl.control_attitude(dt, control_input);
 					_pitch_ctrl.control_attitude(dt, control_input);
 
+					//yaw not control
+					/*
 					if (wheel_control) {
 						_wheel_ctrl.control_attitude(dt, control_input);
 						_yaw_ctrl.reset_integrator();
@@ -512,7 +526,7 @@ void FixedwingAttitudeControl::Run()
 						_yaw_ctrl.control_attitude(dt, control_input);
 						_wheel_ctrl.reset_integrator();
 					}
-
+					*/
 					/* Update input data for rate controllers */
 					control_input.roll_rate_setpoint = _roll_ctrl.get_desired_rate();
 					control_input.pitch_rate_setpoint = _pitch_ctrl.get_desired_rate();
@@ -520,31 +534,35 @@ void FixedwingAttitudeControl::Run()
 
 					/* Run attitude RATE controllers which need the desired attitudes from above, add trim */
 					float roll_u = _roll_ctrl.control_euler_rate(dt, control_input);
-					_actuators.control[actuator_controls_s::INDEX_ROLL] = (PX4_ISFINITE(roll_u)) ? roll_u + trim_roll : trim_roll;
+					towed_att_set_roll = (PX4_ISFINITE(roll_u)) ? roll_u + trim_roll : trim_roll;;
+					//_actuators.control[actuator_controls_s::INDEX_ROLL] = (PX4_ISFINITE(roll_u)) ? roll_u + trim_roll : trim_roll;
 
 					if (!PX4_ISFINITE(roll_u)) {
 						_roll_ctrl.reset_integrator();
 					}
 
 					float pitch_u = _pitch_ctrl.control_euler_rate(dt, control_input);
-					_actuators.control[actuator_controls_s::INDEX_PITCH] = (PX4_ISFINITE(pitch_u)) ? pitch_u + trim_pitch : trim_pitch;
+					towed_att_set_pitch = (PX4_ISFINITE(pitch_u)) ? pitch_u + trim_pitch : trim_pitch;;
+					//_actuators.control[actuator_controls_s::INDEX_PITCH] = (PX4_ISFINITE(pitch_u)) ? pitch_u + trim_pitch : trim_pitch;
 
 					if (!PX4_ISFINITE(pitch_u)) {
 						_pitch_ctrl.reset_integrator();
 					}
 
-					float yaw_u = 0.0f;
 
+					//float yaw_u = _yaw_ctrl.control_euler_rate(dt, control_input);
+					/*
 					if (wheel_control) {
 						yaw_u = _wheel_ctrl.control_bodyrate(dt, control_input);
 
 					} else {
 						yaw_u = _yaw_ctrl.control_euler_rate(dt, control_input);
 					}
-
-					_actuators.control[actuator_controls_s::INDEX_YAW] = (PX4_ISFINITE(yaw_u)) ? yaw_u + trim_yaw : trim_yaw;
-
+					*/
+					//_actuators.control[actuator_controls_s::INDEX_YAW] = (PX4_ISFINITE(yaw_u)) ? yaw_u + trim_yaw : trim_yaw;
+					//towed_att_set_yaw = (PX4_ISFINITE(yaw_u)) ? yaw_u + trim_yaw : trim_yaw;
 					/* add in manual rudder control in manual modes */
+					/*
 					if (_vcontrol_mode.flag_control_manual_enabled) {
 						_actuators.control[actuator_controls_s::INDEX_YAW] += _manual_control_setpoint.r;
 					}
@@ -554,10 +572,10 @@ void FixedwingAttitudeControl::Run()
 						_wheel_ctrl.reset_integrator();
 					}
 
-					/* throttle passed through if it is finite and if no engine failure was detected */
+					//throttle passed through if it is finite and if no engine failure was detected
 					_actuators.control[actuator_controls_s::INDEX_THROTTLE] = (PX4_ISFINITE(_att_sp.thrust_body[0])
 							&& !_vehicle_status.engine_failure) ? _att_sp.thrust_body[0] : 0.0f;
-
+					*/
 					/* scale effort by battery status */
 					if (_param_fw_bat_scale_en.get() &&
 					    _actuators.control[actuator_controls_s::INDEX_THROTTLE] > 0.1f) {
@@ -621,8 +639,80 @@ void FixedwingAttitudeControl::Run()
 			_rate_ctrl_status_pub.publish(rate_ctrl_status);
 		}
 
+		if(_pre_nav_state != _vehicle_status.nav_state){
+			_towed_y_integral = 0;
+			_towed_z_integral = 0;
+			_pre_nav_state = _vehicle_status.nav_state;
+ 		}
+
+		switch(_vehicle_status.nav_state){
+
+		default:
+		case vehicle_status_s::NAVIGATION_STATE_MANUAL:
+
+
+			//Height corresponds to throttle channel
+			//float throller = math::constrain(_manual_control_setpoint.z, 0.0f, 1.0f);
+
+			_actuators.control[0] =
+				_manual_control_setpoint.y * _param_fw_man_r_sc.get() + _param_trim_roll.get();
+			_actuators.control[1] =
+				-_manual_control_setpoint.x * _param_fw_man_p_sc.get() + _param_trim_pitch.get();
+			_actuators.control[2] = 0.f;
+			_actuators.control[3] = 0.f;
+			_actuators.control[4] = _manual_control_setpoint.r;
+			_actuators.control[5] = _manual_control_setpoint.z*2.0f - 1.0f;
+
+			break;
+
+		case vehicle_status_s::NAVIGATION_STATE_STAB:
+
+
+			_y_error = _manual_control_setpoint.r;
+			_z_error = _manual_control_setpoint.z;
+			control_position_yz(dt);
+			_actuators.control[0] = towed_att_set_roll;
+			_actuators.control[1] = towed_att_set_pitch;
+			_actuators.control[2] = 0.f;
+			_actuators.control[3] = 0.f;
+			_actuators.control[4] = _y_control;
+			_actuators.control[5] = _z_control;
+
+			break;
+		case vehicle_status_s::NAVIGATION_STATE_POSCTL:
+
+			if(_vision_position_sub.updated()){
+				_vision_position_sub.copy(&_vision_position);
+				_x_error = _vision_position.vision_position_x /30.f;
+				_y_error = _vision_position.vision_position_y /30.f;
+				_z_error = _vision_position.vision_position_z /30.f;
+				_x_error = math::constrain(_x_error, -1.0f, 1.0f);
+				_y_error = math::constrain(_y_error, -1.0f, 1.0f);
+				_z_error = math::constrain(_z_error, -1.0f, 1.0f);
+
+				const float dt_pos = math::constrain((_vision_position.timestamp - _last_run_pos) * 1e-6f, 0.002f, 0.05f);
+				_last_run_pos = _vision_position.timestamp;
+				control_position_yz(dt_pos);
+				_actuators.control[0] = towed_att_set_roll;
+				_actuators.control[1] = towed_att_set_pitch;
+				_actuators.control[2] = 0.f;
+				_actuators.control[3] = 0.f;
+				_actuators.control[4] = _y_control;
+				_actuators.control[5] = _z_control;
+
+			}
+
+			break;
+
+
+
+
+		}
+
+
 		// Add feed-forward from roll control output to yaw control output
 		// This can be used to counteract the adverse yaw effect when rolling the plane
+		/*
 		_actuators.control[actuator_controls_s::INDEX_YAW] += _param_fw_rll_to_yaw_ff.get()
 				* constrain(_actuators.control[actuator_controls_s::INDEX_ROLL], -1.0f, 1.0f);
 
@@ -631,7 +721,7 @@ void FixedwingAttitudeControl::Run()
 		_actuators.control[actuator_controls_s::INDEX_AIRBRAKES] = _flaperons_applied;
 		// FIXME: this should use _vcontrol_mode.landing_gear_pos in the future
 		_actuators.control[7] = _manual_control_setpoint.aux3;
-
+		*/
 		/* lazily publish the setpoint only once available */
 		_actuators.timestamp = hrt_absolute_time();
 		_actuators.timestamp_sample = att.timestamp;
@@ -711,6 +801,24 @@ void FixedwingAttitudeControl::control_flaps(const float dt)
 		_flaperons_applied = flaperon_control;
 	}
 }
+
+void FixedwingAttitudeControl::control_position_yz(const float dt)
+{
+
+	 _towed_y_integral = _towed_y_integral + _y_error *dt*_param_towed_y_i.get();
+	if(_towed_y_integral > _param_towed_y_ilimit.get()){
+		_towed_y_integral = _param_towed_y_ilimit.get();
+	}
+	_y_control = _param_towed_y_p.get() * _y_error +  _towed_y_integral + _param_towed_y_d.get()*_y_error/dt;
+
+	_towed_z_integral = _towed_z_integral + _z_error *dt*_param_towed_z_i.get();
+	if(_towed_z_integral > _param_towed_z_ilimit.get()){
+		_towed_z_integral = _param_towed_z_ilimit.get();
+	}
+	_z_control = _param_towed_z_p.get()  * _z_error +  _towed_z_integral + _param_towed_z_d.get()*_z_error/dt;
+
+}
+
 
 int FixedwingAttitudeControl::task_spawn(int argc, char *argv[])
 {
