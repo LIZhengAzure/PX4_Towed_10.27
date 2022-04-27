@@ -505,7 +505,7 @@ bool set_nav_state(vehicle_status_s &status, actuator_armed_s &armed, commander_
 				 * For fixedwing, a global position is needed. */
 
 			} else if (check_invalid_pos_nav_state(status, old_failsafe, mavlink_log_pub, status_flags,
-							       rc_fallback_allowed, status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING)) {
+							       rc_fallback_allowed, false /*status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING*/)) {
 				// nothing to do - everything done in check_invalid_pos_nav_state
 
 			} else {
@@ -789,8 +789,9 @@ bool check_invalid_pos_nav_state(vehicle_status_s &status, bool old_failsafe, or
 	if (fallback_required) {
 		if (use_rc) {
 			// fallback to a mode that gives the operator stick control
-			if (status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING
-			    && status_flags.condition_local_position_valid) {
+			//if (status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING
+			//    && status_flags.condition_local_position_valid) {
+			if(true){
 				status.nav_state = vehicle_status_s::NAVIGATION_STATE_POSCTL;
 
 			} else if (status_flags.condition_local_altitude_valid) {
@@ -802,7 +803,8 @@ bool check_invalid_pos_nav_state(vehicle_status_s &status, bool old_failsafe, or
 
 		} else {
 			// go into a descent that does not require stick control
-			if (status_flags.condition_local_position_valid) {
+			//if (status_flags.condition_local_position_valid) {
+			if(true){
 				status.nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_LAND;
 
 			} else if (status_flags.condition_local_altitude_valid) {
