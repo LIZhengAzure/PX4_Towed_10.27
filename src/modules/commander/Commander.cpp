@@ -3217,7 +3217,7 @@ Commander::update_control_mode()
 	switch (_status.nav_state) {
 	case vehicle_status_s::NAVIGATION_STATE_MANUAL:
 		_vehicle_control_mode.flag_control_manual_enabled = true;
-		_vehicle_control_mode.flag_control_rates_enabled = stabilization_required();
+		_vehicle_control_mode.flag_control_rates_enabled = stabilization_required();//在manual的时候没有加入。full
 		_vehicle_control_mode.flag_control_attitude_enabled = stabilization_required();
 		break;
 

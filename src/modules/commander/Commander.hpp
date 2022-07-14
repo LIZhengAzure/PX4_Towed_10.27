@@ -184,7 +184,7 @@ private:
 
 	bool shutdown_if_allowed();
 
-	bool stabilization_required();
+	bool stabilization_required();//看来对于常规的一些是不需要增加稳定的。
 
 	void send_parachute_command();
 

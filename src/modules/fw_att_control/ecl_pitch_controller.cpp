@@ -57,7 +57,7 @@ float ECL_PitchController::control_attitude(const float dt, const ECL_ControlDat
 	/* Calculate the error */
 	float pitch_error = ctl_data.pitch_setpoint - ctl_data.pitch;
 
-	/*  Apply P controller: rate setpoint from current error and time constant */
+	/*  Apply P controller: rate setpoint from current error and time constant */ //P=1
 	_rate_setpoint =  pitch_error / _tc;
 
 	return _rate_setpoint;

@@ -83,7 +83,7 @@ public:
 	~FixedwingAttitudeControl() override;
 
 	/** @see ModuleBase */
-	static int task_spawn(int argc, char *argv[]);
+	static int task_spawn(int argc, char *argv[]); //开线程？如何异步控制的呢？
 
 	/** @see ModuleBase */
 	static int custom_command(int argc, char *argv[]);
@@ -114,8 +114,8 @@ private:
 	uORB::SubscriptionData<airspeed_validated_s> _airspeed_validated_sub{ORB_ID(airspeed_validated)};
 
 	uORB::Publication<actuator_controls_s>		_actuators_0_pub;
-	uORB::Publication<vehicle_attitude_setpoint_s>	_attitude_sp_pub;
-	uORB::Publication<vehicle_rates_setpoint_s>	_rate_sp_pub{ORB_ID(vehicle_rates_setpoint)};
+	uORB::Publication<vehicle_attitude_setpoint_s>	_attitude_sp_pub; // attitude setpoint_s
+	uORB::Publication<vehicle_rates_setpoint_s>	_rate_sp_pub{ORB_ID(vehicle_rates_setpoint)}; //rates setpoint_s
 	uORB::PublicationMulti<rate_ctrl_status_s>	_rate_ctrl_status_pub{ORB_ID(rate_ctrl_status)};
 
 	actuator_controls_s			_actuators {};		/**< actuator control inputs */
@@ -230,13 +230,14 @@ private:
 		(ParamFloat<px4::params::FW_TOWED_Z_P>) _param_towed_z_p,
 		(ParamFloat<px4::params::FW_TOWED_Z_I>) _param_towed_z_i,
 		(ParamFloat<px4::params::FW_TOWED_Z_D>) _param_towed_z_d,
-		(ParamFloat<px4::params::TOWED_Z_ILIMIT>) _param_towed_z_ilimit
-
+		(ParamFloat<px4::params::TOWED_Z_ILIMIT>) _param_towed_z_ilimit,
+		(ParamFloat<px4::params::DLC_MAN_Z_SC>) _param_dlc_man_z_sc,
+		(ParamFloat<px4::params::DLC_MAN_Y_SC>) _param_dlc_man_y_sc
 
 	)
 
-	ECL_RollController		_roll_ctrl;
-	ECL_PitchController		_pitch_ctrl;
+	ECL_RollController		_roll_ctrl;  //控制子类对象。
+	ECL_PitchController		_pitch_ctrl;  //控制子类
 	ECL_YawController		_yaw_ctrl;
 	ECL_WheelController		_wheel_ctrl;
 
@@ -245,14 +246,14 @@ private:
 	/**
 	 * Update our local parameter cache.
 	 */
-	int		parameters_update();
+	int		parameters_update();//数据订阅与参数更新
 
 	void		vehicle_control_mode_poll();
 	void		vehicle_manual_poll();
 	void		vehicle_attitude_setpoint_poll();
 	void		vehicle_rates_setpoint_poll();
 	void		vehicle_land_detected_poll();
-	void 		control_position_yz(const float dt);
+	void 		control_position_yz(const float dt); //用于视觉处理的私有函数。
 
 	float 		get_airspeed_and_update_scaling();
 };

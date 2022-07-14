@@ -734,15 +734,128 @@ PARAM_DEFINE_FLOAT(FW_DTRIM_R_FLPS, 0.0f);
  * @decimal 2
  * @increment 0.01
  */
-PARAM_DEFINE_FLOAT(FW_DTRIM_P_FLPS, 0.0f);
+PARAM_DEFINE_FLOAT(FW_DTRIM_P_FLPS, 0.0f);//
 
 PARAM_DEFINE_FLOAT(FW_TOWED_Y_P, 0.1f);
+/**
+ * yPosition_error controller PID parameters P
+ *
+ * This is simple PID Position controller for following the VisionPosition error.
+ *
+ * @group FW Attitude Control
+ * @min -1
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ */
 PARAM_DEFINE_FLOAT(FW_TOWED_Y_I, 0.0f);
+/**
+ * yPosition_error controller PID parameters I
+ *
+ * This is simple PID Position controller for following the VisionPosition error.
+ *
+ * @group FW Attitude Control
+ * @min -1
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ */
 PARAM_DEFINE_FLOAT(FW_TOWED_Y_D, 0.0f);
+/**
+ * yPosition_error controller PID parameters D
+ *
+ * This is simple PID Position controller for following the VisionPosition error.
+ *
+ * @group FW Attitude Control
+ * @min -1
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ */
 PARAM_DEFINE_FLOAT(TOWED_Y_ILIMIT, 0.2f);
-
+/**
+ * yPosition_error controller PID parameters integer_Y limit.
+ *
+ * This is simple PID Position controller for following the VisionPosition error.
+ *
+ * @group FW Attitude Control
+ * @min -1
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ */
 PARAM_DEFINE_FLOAT(FW_TOWED_Z_P, 0.1f);
+/**
+ * zPosition_error controller PID parameters P
+ *
+ * This is simple PID Position controller for following the VisionPosition error.
+ *
+ * @group FW Attitude Control
+ * @min -1
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ */
 PARAM_DEFINE_FLOAT(FW_TOWED_Z_I, 0.0f);
+/**
+ * zPosition_error controller PID parameters I
+ *
+ * This is simple PID Position controller for following the VisionPosition error.
+ *
+ * @group FW Attitude Control
+ * @min -1
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ */
 PARAM_DEFINE_FLOAT(FW_TOWED_Z_D, 0.0f);
+/**
+ * zPosition_error controller PID parameters D
+ *
+ * This is simple PID Position controller for following the VisionPosition error.
+ *
+ * @group FW Attitude Control
+ * @min -1
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ */
 PARAM_DEFINE_FLOAT(TOWED_Z_ILIMIT, 0.2f);
+/**
+ * zPosition_error controller PID parameters Z_LIMIT
+ *
+ * This is simple PID Position controller for following the VisionPosition error.
+ *
+ * @group FW Attitude Control
+ * @min -1
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ */
 PARAM_DEFINE_FLOAT(FW_RSP_OFF,   0.0f);
+
+PARAM_DEFINE_FLOAT(DLC_MAN_Z_SC, 1.0f);
+/**
+ * Direct lift control weight power for manual.
+ *
+ * .
+ *
+ * @group FW Attitude Control
+ * @min 0
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ */
+ PARAM_DEFINE_FLOAT(DLC_MAN_Y_SC, 1.0f);
+/**
+ * Direct lift control weight power for manual.
+ *
+ * .
+ *
+
+ * @min 0
+ * @max 1
+ * @decimal 2
+ * @increment 0.01
+ * @group FW Attitude Control
+ * */

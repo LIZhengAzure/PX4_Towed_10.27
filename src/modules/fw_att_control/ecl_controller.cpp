@@ -56,7 +56,7 @@ ECL_Controller::ECL_Controller() :
 	_tc(0.1f),
 	_k_p(0.0f),
 	_k_i(0.0f),
-	_k_ff(0.0f),
+	_k_ff(0.0f),  //内环控制参数。
 	_integrator_max(0.0f),
 	_max_rate(0.0f),
 	_last_output(0.0f),

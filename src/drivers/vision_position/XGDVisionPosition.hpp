@@ -101,6 +101,7 @@ private:
 	uint8_t _buffer[VISION_POSITION_BUFFER_LENGTH] {};
 
 	int16_t _distance_x,_distance_y,_distance_z;
+ //
 
 	perf_counter_t _comms_errors{perf_alloc(PC_COUNT, MODULE_NAME": com_err")};
 	perf_counter_t _sample_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": read")};

@@ -87,7 +87,8 @@ int XGDVisionPosition::collect()
 	// Read from the sensor UART buffer.
 	//const hrt_abstime timestamp_sample = hrt_absolute_time();
 	int bytes_read = ::read(_file_descriptor, &_buffer[0], sizeof(_buffer));
-	//printf("cd num:%d===========\r\n",bytes_read);
+	//printf("bytes_read num:%d===========\r\n",bytes_read);
+	//printf("24BUFFER last data:%d,%d,%d,%d", _buffer[0],_buffer[1],_buffer[2],_buffer[3]);
 	if (bytes_read > 0) {
 		index = bytes_read - 8;
 
@@ -96,24 +97,38 @@ int XGDVisionPosition::collect()
 
 				bytes_processed = index;
 
+
 				while (bytes_processed < bytes_read && !checksum_passed) {
 
 					uint8_t checksum_value = _buffer[index] + _buffer[index + 1] + _buffer[index + 2] + _buffer[index + 3] + _buffer[index + 4] +_buffer[index + 5] +_buffer[index + 6];
 					uint8_t checksum_byte = _buffer[index + 7];
 
+
 					if (checksum_value == checksum_byte) {
 						checksum_passed = true;
 						//printf("sum ture\r\n");
-						_distance_x = (_buffer[index + 2] << 8) | _buffer[index + 1];
+						_distance_x = (_buffer[index + 2] << 8) | _buffer[index + 1];//发送：低-高进行读取。
 						_distance_y = (_buffer[index + 4] << 8) | _buffer[index + 3];
 						_distance_z = (_buffer[index + 6] << 8) | _buffer[index + 5];
-						printf("distance_x:%d  y:%d z:%d\r\n",_distance_x,_distance_y,_distance_z);
+						//自己定义的私有变量无法使用。到底是什么问题呢？，int16_t 加减乘除也无法直接应用。
+						
 
 						vision_position_s report{};
-						report.vision_position_x = _distance_x;
-						report.vision_position_y = _distance_y;
-						report.vision_position_z = _distance_z;
+						//change the information::
+						/*  towed         vision   */
+						//  position_x    distance_z//距离
+						//  position_y    distance_x// 侧向
+						//  position_z    distance_y//纵向 mm for the distance.results.
+						report.vision_position_x = _distance_z;
+						report.vision_position_y = _distance_x;
+						report.vision_position_z = _distance_y;
 						_vision_position_topic.publish(report);
+						
+
+					
+							printf("camera axies distance error(mm), x:%d  y:%d z:%d\r\n",_distance_x,_distance_y,_distance_z);
+							
+						
 					}
 
 
@@ -211,6 +226,7 @@ void XGDVisionPosition::Run()
 {
 	// Ensure the serial port is open.
 	open_serial_port();
+
 
 	collect();
 }
