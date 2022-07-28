@@ -736,7 +736,8 @@ PARAM_DEFINE_FLOAT(FW_DTRIM_R_FLPS, 0.0f);
  */
 PARAM_DEFINE_FLOAT(FW_DTRIM_P_FLPS, 0.0f);//
 
-PARAM_DEFINE_FLOAT(FW_TOWED_Y_P, 0.1f);
+
+PARAM_DEFINE_FLOAT(FW_TOWED_Y_P, 0.6f);
 /**
  * yPosition_error controller PID parameters P
  *
@@ -772,7 +773,7 @@ PARAM_DEFINE_FLOAT(FW_TOWED_Y_D, 0.0f);
  * @decimal 2
  * @increment 0.01
  */
-PARAM_DEFINE_FLOAT(TOWED_Y_ILIMIT, 0.2f);
+PARAM_DEFINE_FLOAT(TOWED_Y_ILIMIT, 0.4f);
 /**
  * yPosition_error controller PID parameters integer_Y limit.
  *
@@ -784,7 +785,7 @@ PARAM_DEFINE_FLOAT(TOWED_Y_ILIMIT, 0.2f);
  * @decimal 2
  * @increment 0.01
  */
-PARAM_DEFINE_FLOAT(FW_TOWED_Z_P, 0.1f);
+PARAM_DEFINE_FLOAT(FW_TOWED_Z_P, 0.6f);
 /**
  * zPosition_error controller PID parameters P
  *
@@ -796,7 +797,7 @@ PARAM_DEFINE_FLOAT(FW_TOWED_Z_P, 0.1f);
  * @decimal 2
  * @increment 0.01
  */
-PARAM_DEFINE_FLOAT(FW_TOWED_Z_I, 0.0f);
+PARAM_DEFINE_FLOAT(FW_TOWED_Z_I, 0.0f);//这里0.2是什么意思。
 /**
  * zPosition_error controller PID parameters I
  *
@@ -820,7 +821,7 @@ PARAM_DEFINE_FLOAT(FW_TOWED_Z_D, 0.0f);
  * @decimal 2
  * @increment 0.01
  */
-PARAM_DEFINE_FLOAT(TOWED_Z_ILIMIT, 0.2f);
+PARAM_DEFINE_FLOAT(TOWED_Z_ILIMIT, 0.4f);
 /**
  * zPosition_error controller PID parameters Z_LIMIT
  *

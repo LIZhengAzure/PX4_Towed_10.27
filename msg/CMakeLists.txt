@@ -42,6 +42,7 @@ set(msg_files
 	airspeed.msg
 	airspeed_validated.msg
 	airspeed_wind.msg
+	auto_fuel.msg  #2022 0728 LUOFEI
 	battery_status.msg
 	camera_capture.msg
 	camera_trigger.msg

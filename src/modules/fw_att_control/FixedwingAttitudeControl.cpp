@@ -740,28 +740,23 @@ void FixedwingAttitudeControl::Run()
 		case vehicle_status_s::NAVIGATION_STATE_POSCTL:
 
 
-			if(_vision_position_sub.updated()){//只有当数据更新一次的时候，舵机开始适当作动。
+			if(_vision_position_sub.updated()){
 				_vision_position_sub.copy(&_vision_position);
-				_x_error = _vision_position.vision_position_x;///160.f;//mm/
-				_y_error = _vision_position.vision_position_y;///160.f;
-				_z_error = _vision_position.vision_position_z;//160.f;
-				//测试得到的误差信息
-			//printf("**************THE POSCTL ERROR original CONTROL SIGNALS*************\r\n");
-				//PX4_INFO("_x_error%f",(double)_x_error);
-				//PX4_INFO("_y_error%f",(double)_y_error);
-				//PX4_INFO("_z_error%f",(double)_z_error);
+				_x_error = _vision_position.vision_position_x;
+				_y_error = _vision_position.vision_position_y/_x_error;
+				_z_error = _vision_position.vision_position_z/_x_error;
+				
+				
 
-				_x_error = math::constrain(_x_error, -1.0f, 1.0f);//必须将误差量限制在 【-1 1】之间
-				_y_error = math::constrain(_y_error, -1.0f, 1.0f);
+				_y_error = math::constrain(_y_error, -1.0f, 1.0f);// to longer to small...
 				_z_error = math::constrain(_z_error, -1.0f, 1.0f);
-				//TODO record X,Y,Z information for analysis.
-			//printf("**************THE POSCTL CONTROL INPUT SIGNAL*************\r\n");
-			//PX4_INFO("STAB: pitch_setpoint - pitch = %f", (double)pitchERROR);
-			//PX4_INFO("STAB: roll_setpoint - roll = %f", (double)rollERROR);
-			//PX4_INFO("STAB: pitch_rate_setpoint - pitch_rate %f", (double)pitchRateERROR);
-			//PX4_INFO("STAB: roll_rate_setpoint - roll_rate %f", (double)rollRateERROR); 
-			//PX4_INFO("POSCTL: _y_error %f", (double)_y_error);
-			//PX4_INFO("POSCTL: _z_error %f", (double)_z_error);
+				
+				_auto_fuel_control.timestamp = hrt_absolute_time();
+				_auto_fuel_control.control_input_error_y = _y_error;
+				_auto_fuel_control.control_input_error_z = _z_error;
+				_auto_fuel_topic.publish(_auto_fuel_control);
+
+
 
 				const float dt_pos = math::constrain((_vision_position.timestamp - _last_run_pos) * 1e-6f, 0.002f, 0.05f);
 				_last_run_pos = _vision_position.timestamp;
@@ -772,8 +767,8 @@ void FixedwingAttitudeControl::Run()
 				_actuators.control[1] = towed_att_set_pitch; //使用增稳控制
 				_actuators.control[2] = 0.f;
 				_actuators.control[3] = 0.f;
-				_actuators.control[4] = _y_control;
-				_actuators.control[5] = _z_control;
+				_actuators.control[4] = _y_control*_param_dlc_man_y_sc.get();//使用直接力控制的增益。
+				_actuators.control[5] = _z_control*_param_dlc_man_z_sc.get();
 
 			//printf("**************THE POSCTL ACTUATORS CONTROL SIGNALS*************\r\n");
 			//PX4_INFO("_actuators.control[0] roll=  %f", (double)_actuators.control[0]);
@@ -887,12 +882,7 @@ FixedwingAttitudeControl::control_flaps (const float dt)
 
 void FixedwingAttitudeControl::control_position_yz(const float dt)
 {
-	if (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_STAB)
-	{
 
-		_z_error = _z_error;
-
-	}
 	// yPosition error PID control input...
 	 _towed_y_integral = _towed_y_integral + _y_error *dt*_param_towed_y_i.get();// I 参数。
 	if(_towed_y_integral > _param_towed_y_ilimit.get()){

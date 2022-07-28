@@ -54,6 +54,7 @@ void LoggedTopics::add_default_topics()
 	add_topic("actuator_controls_5", 100);
 	add_topic("airspeed", 1000);
 	add_topic("airspeed_validated", 200);
+	add_topic("auto_fuel");
 	add_topic("camera_capture");
 	add_topic("camera_trigger");
 	add_topic("camera_trigger_secondary");

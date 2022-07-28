@@ -67,6 +67,7 @@
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vision_position.h>
+#include <uORB/topics/auto_fuel.h>
 
 using matrix::Eulerf;
 using matrix::Quatf;
@@ -114,10 +115,14 @@ private:
 	uORB::SubscriptionData<airspeed_validated_s> _airspeed_validated_sub{ORB_ID(airspeed_validated)};
 
 	uORB::Publication<actuator_controls_s>		_actuators_0_pub;
+
+	//uORB::Publication<auto_fuel_s>			_auto_fuel_pub;
+	uORB::PublicationMulti<auto_fuel_s>		_auto_fuel_topic{ORB_ID(auto_fuel)};
 	uORB::Publication<vehicle_attitude_setpoint_s>	_attitude_sp_pub; // attitude setpoint_s
 	uORB::Publication<vehicle_rates_setpoint_s>	_rate_sp_pub{ORB_ID(vehicle_rates_setpoint)}; //rates setpoint_s
 	uORB::PublicationMulti<rate_ctrl_status_s>	_rate_ctrl_status_pub{ORB_ID(rate_ctrl_status)};
 
+	auto_fuel_s				_auto_fuel_control {};
 	actuator_controls_s			_actuators {};		/**< actuator control inputs */
 	manual_control_setpoint_s		_manual_control_setpoint {};		/**< r/c channel data */
 	vehicle_attitude_setpoint_s		_att_sp {};		/**< vehicle attitude setpoint */
