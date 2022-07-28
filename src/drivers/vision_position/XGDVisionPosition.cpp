@@ -114,19 +114,25 @@ int XGDVisionPosition::collect()
 						
 
 						vision_position_s report{};
+						report.timestamp = hrt_absolute_time();
 						//change the information::
 						/*  towed         vision   */
-						//  position_x    distance_z//距离
-						//  position_y    distance_x// 侧向
-						//  position_z    distance_y//纵向 mm for the distance.results.
-						report.vision_position_x = _distance_z;
-						report.vision_position_y = _distance_x;
+						//  position_x    minus distance_z//距离
+						//  position_y    minus distance_y// 侧向
+						//  position_z    distance_y//纵向 mm for the distance.results.确认一下。
+						report.vision_position_x = -_distance_z;
+						report.vision_position_y = -_distance_x;
 						report.vision_position_z = _distance_y;
+						//report.record_uav_x = (double)-_distance_z;
+						
+						//report.record_uav_y = (double)-_distance_x;
+						//report.record_uav_z = (double)_distance_y;
+
 						_vision_position_topic.publish(report);
 						
 
 					
-							printf("camera axies distance error(mm), x:%d  y:%d z:%d\r\n",_distance_x,_distance_y,_distance_z);
+							//printf("camera axies distance error(mm), x:%d  y:%d z:%d\r\n",_distance_x,_distance_y,_distance_z);
 							
 						
 					}
