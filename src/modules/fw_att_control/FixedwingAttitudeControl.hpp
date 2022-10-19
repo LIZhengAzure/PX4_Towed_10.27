@@ -67,7 +67,8 @@
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vision_position.h>
-#include <uORB/topics/auto_fuel.h>
+#include <uORB/topics/record_information.h>
+#include <uORB/topics/distance_sensor.h>
 
 using matrix::Eulerf;
 using matrix::Quatf;
@@ -108,6 +109,7 @@ private:
 	uORB::Subscription _rates_sp_sub{ORB_ID(vehicle_rates_setpoint)};		/**< vehicle rates setpoint */
 	uORB::Subscription _vcontrol_mode_sub{ORB_ID(vehicle_control_mode)};		/**< vehicle status subscription */
 	uORB::Subscription _vision_position_sub{ORB_ID(vision_position)};		       /**< vision position subscription */ //add 2022-2-11
+	uORB::Subscription _distance_sensor_sub{ORB_ID(distance_sensor)};		       /**< distance_sensor */ //add 2022-2-11
 	uORB::Subscription _vehicle_land_detected_sub{ORB_ID(vehicle_land_detected)};	/**< vehicle land detected subscription */
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};			/**< vehicle status subscription */
 	uORB::Subscription _vehicle_rates_sub{ORB_ID(vehicle_angular_velocity)};
@@ -117,12 +119,12 @@ private:
 	uORB::Publication<actuator_controls_s>		_actuators_0_pub;
 
 	//uORB::Publication<auto_fuel_s>			_auto_fuel_pub;
-	uORB::PublicationMulti<auto_fuel_s>		_auto_fuel_topic{ORB_ID(auto_fuel)};
+	uORB::PublicationMulti<record_information_s>	_record_information_0_pub{ORB_ID(record_information)};// LUOFEI must used ID.
 	uORB::Publication<vehicle_attitude_setpoint_s>	_attitude_sp_pub; // attitude setpoint_s
 	uORB::Publication<vehicle_rates_setpoint_s>	_rate_sp_pub{ORB_ID(vehicle_rates_setpoint)}; //rates setpoint_s
 	uORB::PublicationMulti<rate_ctrl_status_s>	_rate_ctrl_status_pub{ORB_ID(rate_ctrl_status)};
 
-	auto_fuel_s				_auto_fuel_control {};
+	record_information_s			_record_information {};
 	actuator_controls_s			_actuators {};		/**< actuator control inputs */
 	manual_control_setpoint_s		_manual_control_setpoint {};		/**< r/c channel data */
 	vehicle_attitude_setpoint_s		_att_sp {};		/**< vehicle attitude setpoint */
@@ -131,6 +133,7 @@ private:
 	vehicle_rates_setpoint_s		_rates_sp {};		/* attitude rates setpoint */
 	vehicle_status_s			_vehicle_status {};	/**< vehicle status */
 	vision_position_s			_vision_position {};	        /**< vision position */
+	distance_sensor_s			_CFLuna_distance {};	        /**< benewake. */
 
 	perf_counter_t	_loop_perf;			/**< loop performance counter */
 
@@ -153,9 +156,13 @@ private:
 
 	hrt_abstime _last_run_pos{0};
 	float _x_error,_y_error,_z_error;
-	float _x_control,_y_control,_z_control;
+	float _x_control,_y_control,_z_control,_y_control_damp,_z_control_damp;
+	float _frame_z_error, _frame_y_error,_frame_x_error,_frame_vz_error, _frame_vy_error,_frame_vx_error;
+	float _CFLuna_distance_Down;
 	float _towed_y_integral{0};
 	float _towed_z_integral{0};
+	float _towed_ydamp_integral{0};
+	float _towed_zdamp_integral{0};
 
 	uint8_t _pre_nav_state{0};
 
@@ -223,6 +230,7 @@ private:
 		(ParamFloat<px4::params::FW_YR_I>) _param_fw_yr_i,
 		(ParamFloat<px4::params::FW_YR_IMAX>) _param_fw_yr_imax,
 		(ParamFloat<px4::params::FW_YR_P>) _param_fw_yr_p,
+		(ParamFloat<px4::params::FW_YSP_OFF>) _param_fw_ysp_off, //LUOFEI 
 
 		(ParamFloat<px4::params::TRIM_PITCH>) _param_trim_pitch,
 		(ParamFloat<px4::params::TRIM_ROLL>) _param_trim_roll,
@@ -236,9 +244,24 @@ private:
 		(ParamFloat<px4::params::FW_TOWED_Z_I>) _param_towed_z_i,
 		(ParamFloat<px4::params::FW_TOWED_Z_D>) _param_towed_z_d,
 		(ParamFloat<px4::params::TOWED_Z_ILIMIT>) _param_towed_z_ilimit,
-		(ParamFloat<px4::params::DLC_MAN_Z_SC>) _param_dlc_man_z_sc,
-		(ParamFloat<px4::params::DLC_MAN_Y_SC>) _param_dlc_man_y_sc
 
+		(ParamFloat<px4::params::FW_TOWED_YDAMP_P>) _param_towed_ydamp_p,
+		(ParamFloat<px4::params::FW_TOWED_YDAMP_I>) _param_towed_ydamp_i,
+		(ParamFloat<px4::params::FW_TOWED_YDAMP_D>) _param_towed_ydamp_d,
+		(ParamFloat<px4::params::TOWED_YD_ILIMIT>) _param_towed_yd_ilimit,
+		(ParamFloat<px4::params::FW_TOWED_ZDAMP_P>) _param_towed_zdamp_p,
+		(ParamFloat<px4::params::FW_TOWED_ZDAMP_I>) _param_towed_zdamp_i,
+		(ParamFloat<px4::params::FW_TOWED_ZDAMP_D>) _param_towed_zdamp_d,
+		(ParamFloat<px4::params::TOWED_ZD_ILIMIT>) _param_towed_zd_ilimit,
+		(ParamBool<px4::params::TOWED_DAMP_FLAG>) _param_towed_damp_flag,
+		(ParamBool<px4::params::TOWED_YCTL_FLAG>) _param_towed_yctl_flag,
+                (ParamBool<px4::params::TOWED_POSH_FLAG>) _param_towed_posh_flag,
+                (ParamBool<px4::params::TOWED_VTRIM_FLAG>) _param_towed_vtrim_flag,
+		(ParamFloat<px4::params::DLC_MAN_Z_SC>) _param_dlc_man_z_sc,
+		(ParamFloat<px4::params::DLC_MAN_Y_SC>) _param_dlc_man_y_sc,
+		(ParamFloat<px4::params::DLC_MAN_Y_TRIM>) _param_dlc_man_y_trim,
+		(ParamFloat<px4::params::DLC_MAN_Z_TRIM>) _param_dlc_man_z_trim
+		
 	)
 
 	ECL_RollController		_roll_ctrl;  //控制子类对象。
@@ -258,7 +281,9 @@ private:
 	void		vehicle_attitude_setpoint_poll();
 	void		vehicle_rates_setpoint_poll();
 	void		vehicle_land_detected_poll();
-	void 		control_position_yz(const float dt); //用于视觉处理的私有函数。
+	void 		control_position_yz(const float dt); //用于视觉位置控制。。
+	void 		direct_damp_control(const float dt);
+	void 		direct_position_yz(const float dt); // 用于直接力控制操纵量（侧向保持。移动量稳定）
 
 	float 		get_airspeed_and_update_scaling();
 };

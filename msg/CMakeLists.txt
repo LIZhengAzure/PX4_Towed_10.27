@@ -42,7 +42,6 @@ set(msg_files
 	airspeed.msg
 	airspeed_validated.msg
 	airspeed_wind.msg
-	auto_fuel.msg  #2022 0728 LUOFEI
 	battery_status.msg
 	camera_capture.msg
 	camera_trigger.msg
@@ -122,6 +121,7 @@ set(msg_files
 	rc_parameter_map.msg
 	rpm.msg
 	rtl_flight_time.msg
+	record_information.msg  #2022 0728 LUOFEI
 	safety.msg
 	satellite_info.msg
 	sensor_accel.msg

@@ -54,13 +54,13 @@ void LoggedTopics::add_default_topics()
 	add_topic("actuator_controls_5", 100);
 	add_topic("airspeed", 1000);
 	add_topic("airspeed_validated", 200);
-	add_topic("auto_fuel");
 	add_topic("camera_capture");
 	add_topic("camera_trigger");
 	add_topic("camera_trigger_secondary");
 	add_topic("cellular_status", 200);
 	add_topic("commander_state");
 	add_topic("cpuload");
+	add_topic("distance_sensor", 200);// add for CF——LUNA
 	add_topic("esc_status", 250);
 	add_topic("follow_target", 500);
 	add_topic("generator_status");
@@ -83,6 +83,7 @@ void LoggedTopics::add_default_topics()
 	add_topic("radio_status");
 	add_topic("rpm", 500);
 	add_topic("rtl_flight_time", 1000);
+	add_topic("record_information");
 	add_topic("safety");
 	add_topic("sensor_combined");
 	add_topic("sensor_correction");
