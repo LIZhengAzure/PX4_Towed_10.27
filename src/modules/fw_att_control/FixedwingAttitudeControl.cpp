@@ -138,7 +138,7 @@ FixedwingAttitudeControl::vehicle_control_mode_poll()//轮询机制update这个�
 }
 
 void
-FixedwingAttitudeControl::vehicle_manual_poll()
+FixedwingAttitudeControl::vehicle_manual_poll()//遥控设定姿态指令；使用预置指令 
 {
 	const bool is_tailsitter_transition = _is_tailsitter && _vehicle_status.in_transition_mode;
 	const bool is_fixed_wing = _vehicle_status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING;
@@ -154,12 +154,10 @@ FixedwingAttitudeControl::vehicle_manual_poll()
 				if (_vcontrol_mode.flag_control_attitude_enabled) {
 					// STABILIZED mode generate the attitude setpoint from manual user inputs
 
-					//注意，遥控器指令不直接控制姿态，采用预定值。
-					_att_sp.roll_body = radians(_param_fw_rsp_off.get());
+					//姿态稳定指令：通常只对俯仰、滚转设定。偏航仿真结果不理想，一般不使能。。
+					_att_sp.roll_body = radians(_param_fw_rsp_off.get()); //rad。
 					_att_sp.pitch_body = radians(_param_fw_psp_off.get());
-					_att_sp.yaw_body = radians(_param_fw_ysp_off.get());//姿态控制时，航向不做控制，同时航向角没有限制。
-					_att_sp.thrust_body[0] = 0.0f; 
-
+					_att_sp.yaw_body = radians(_param_fw_ysp_off.get());//
 					Quatf q(Eulerf(_att_sp.roll_body, _att_sp.pitch_body, _att_sp.yaw_body));
 					q.copyTo(_att_sp.q_d);
 
@@ -173,39 +171,6 @@ FixedwingAttitudeControl::vehicle_manual_poll()
 	}
 }
 
-void
-FixedwingAttitudeControl::vehicle_attitude_setpoint_poll()
-{
-	if (_att_sp_sub.update(&_att_sp)) {
-		_rates_sp.thrust_body[0] = _att_sp.thrust_body[0];
-		_rates_sp.thrust_body[1] = _att_sp.thrust_body[1];
-		_rates_sp.thrust_body[2] = _att_sp.thrust_body[2];
-	}
-}
-
-void
-FixedwingAttitudeControl::vehicle_rates_setpoint_poll()
-{
-	if (_rates_sp_sub.update(&_rates_sp)) {
-		if (_is_tailsitter) {
-			float tmp = _rates_sp.roll;
-			_rates_sp.roll = -_rates_sp.yaw;
-			_rates_sp.yaw = tmp;
-		}
-	}
-}
-
-void
-FixedwingAttitudeControl::vehicle_land_detected_poll()//固定翼着陆控制，改变着陆私有函数。
-{
-	if (_vehicle_land_detected_sub.updated()) {
-		vehicle_land_detected_s vehicle_land_detected {};
-
-		if (_vehicle_land_detected_sub.copy(&vehicle_land_detected)) {
-			_landed = vehicle_land_detected.landed;
-		}
-	}
-}
 
 float FixedwingAttitudeControl::get_airspeed_and_update_scaling() //获取飞行速度并更新
 {
@@ -288,17 +253,10 @@ void FixedwingAttitudeControl::Run()
 		float yawspeed = angular_velocity.xyz[2];
 
 		const matrix::Eulerf euler_angles(R);
-
-		vehicle_attitude_setpoint_poll();
-		// vehicle status update must be before the vehicle_control_mode_poll(), otherwise rate sp are not published during whole transition
 		_vehicle_status_sub.update(&_vehicle_status);
 
 		vehicle_control_mode_poll();
 		vehicle_manual_poll();
-		vehicle_land_detected_poll();
-
-		//_att_sp.fw_control_yaw = _att_sp.fw_control_yaw && _vcontrol_mode.flag_control_auto_enabled;//TODO：航向是否控制？
-		// 航向使用新的标志位进行设置。
 
 		// lock integrator if no rate control enabled, or in RW mode (but not transitioning VTOL or tailsitter), or for long intervals (> 20 ms)
 		bool lock_integrator = !_vcontrol_mode.flag_control_rates_enabled
@@ -312,9 +270,9 @@ void FixedwingAttitudeControl::Run()
 		//float towed_att_set_yaw = 0.0f;
 
 		// 记录欧拉角度，用于显示。
-		_record_information.record_roll = euler_angles.phi();
-		_record_information.record_pitch = euler_angles.theta();
-		_record_information.record_yaw = euler_angles.psi();
+		_record_information.record_roll = euler_angles.phi()* 57.3f;
+		_record_information.record_pitch = euler_angles.theta()* 57.3f;
+		_record_information.record_yaw = euler_angles.psi()* 57.3f;
 
 
 		if (_vcontrol_mode.flag_control_rates_enabled) {// 在manual的时候不进入，STAB，POSCTR进入。
@@ -335,19 +293,21 @@ void FixedwingAttitudeControl::Run()
 				_wheel_ctrl.reset_integrator();
 			}
 
-			/* Prepare data for attitude controllers */
+			/* Prepare data for attitude controllers */ // 姿态传感信息
 			ECL_ControlData control_input{}; // 内部变量：control_input .att/
-			control_input.roll = euler_angles.phi();//角速率的量
+			control_input.roll = euler_angles.phi();//rad.
 			control_input.pitch = euler_angles.theta();
-			control_input.yaw = euler_angles.psi();
+			control_input.yaw = euler_angles.psi();// rad
 			control_input.body_x_rate = rollspeed;
 			control_input.body_y_rate = pitchspeed;
 			control_input.body_z_rate = yawspeed;
 
-			control_input.roll_setpoint  =  _att_sp.roll_body; //radians(_param_fw_rsp_off.get());
-			control_input.pitch_setpoint = _att_sp.pitch_body;// radians(_param_fw_psp_off.get());
-			control_input.yaw_setpoint = _att_sp.yaw_body;//0.0f; // TODO : 应该是多少 
+			//遥控指令信息或者自动导航姿态信息
+			control_input.roll_setpoint  =  _att_sp.roll_body; //rad
+			control_input.pitch_setpoint = _att_sp.pitch_body;// rad
+			control_input.yaw_setpoint = _att_sp.yaw_body;//rad
 
+			//速度参数设定
 			control_input.airspeed_min = _param_fw_airspd_stall.get();
 			control_input.airspeed_max = _param_fw_airspd_max.get();
 			control_input.airspeed = airspeed;
@@ -376,10 +336,12 @@ void FixedwingAttitudeControl::Run()
 
 			_flag_control_attitude_enabled_last = _vcontrol_mode.flag_control_attitude_enabled;
 
+			// 空速进行低速低头、高速度抬头设计，使用标志位
 			float trim_roll = _param_trim_roll.get();
 			float trim_pitch = _param_trim_pitch.get();
 			float trim_yaw = _param_trim_yaw.get();
-			// TODO  空速缩减量， 确定配平的极性关系。（晚上测试）
+			
+			// 使用标志位进行使能
 			if (_param_towed_vtrim_flag.get()){
 				if (airspeed < _param_fw_airspd_trim.get()) {
 				trim_pitch += gradual(airspeed, _param_fw_airspd_stall.get(), _param_fw_airspd_trim.get(), _param_fw_dtrim_p_vmin.get(),
@@ -391,69 +353,70 @@ void FixedwingAttitudeControl::Run()
 				}
 			}
 
-			// fw_dtrim_r_vmax  最大车速下配平增量。
-
-			/* Run attitude controllers */
+			//进行姿态控制
 			if (_vcontrol_mode.flag_control_attitude_enabled) {
-				if (PX4_ISFINITE(_att_sp.roll_body) && PX4_ISFINITE(_att_sp.pitch_body)) {
-					_roll_ctrl.control_attitude(dt, control_input);//roll_rates_setpoints=(roll_setpoint-roll)/dt
-					_pitch_ctrl.control_attitude(dt, control_input);
-					_yaw_ctrl.control_attitude(dt, control_input); // 航向的姿态控制应该设定为固定值。
+				// 姿态控制：姿态指令有效
+				if (PX4_ISFINITE(_att_sp.roll_body) && PX4_ISFINITE(_att_sp.pitch_body)
+					&&PX4_ISFINITE(_att_sp.yaw_body)) {
 					
-					/* Update input data for rate controllers */
+					//俯仰、滚转姿态外环控制
+					_roll_ctrl.control_attitude(dt, control_input);// rad. roll_rates_setpoints=(roll_setpoint-roll)/dt
+					_pitch_ctrl.control_attitude(dt, control_input);
 					control_input.roll_rate_setpoint = _roll_ctrl.get_desired_rate();
 					control_input.pitch_rate_setpoint = _pitch_ctrl.get_desired_rate();
-					control_input.yaw_rate_setpoint = _yaw_ctrl.get_desired_rate();
-
-					/* Run attitude RATE controllers which need the desired attitudes from above, add trim */
-					float roll_u = _roll_ctrl.control_euler_rate(dt, control_input);
-					towed_att_set_roll = (PX4_ISFINITE(roll_u)) ? roll_u + (trim_roll) : (trim_roll);
 					
+					//航向控制标志
+					if (_param_towed_yctl_flag.get()){
+						_yaw_ctrl.control_attitude(dt, control_input); // 协调转弯
+						control_input.yaw_rate_setpoint = _yaw_ctrl.get_desired_rate();
+					}else{
+						control_input.yaw_rate_setpoint = 0.0f;
+					}
+
+					//滚转角速率控制
+					float roll_u = _roll_ctrl.control_euler_rate(dt, control_input);
+					float pitch_u = _pitch_ctrl.control_euler_rate(dt, control_input);
+					float yaw_u = _yaw_ctrl.control_euler_rate(dt, control_input);
+					
+					// 加入配平指令
+					towed_att_set_roll = (PX4_ISFINITE(roll_u)) ? roll_u + trim_roll : trim_roll;
+					towed_att_set_pitch = (PX4_ISFINITE(pitch_u)) ? pitch_u + trim_pitch : trim_pitch;
+					towed_att_set_yaw = (PX4_ISFINITE(yaw_u)) ? yaw_u + trim_yaw : trim_yaw;
+
+					// 控制量超范围，进行积分归零。（范围是什么）
 					if (!PX4_ISFINITE(towed_att_set_roll)) {
 						_roll_ctrl.reset_integrator();
 					}
 
-					float pitch_u = _pitch_ctrl.control_euler_rate(dt, control_input);
-					towed_att_set_pitch = (PX4_ISFINITE(pitch_u)) ? pitch_u + trim_pitch : trim_pitch;
-					
 					if (!PX4_ISFINITE(towed_att_set_pitch)) {
 						_pitch_ctrl.reset_integrator();
 					}
-
-					float yaw_u = _yaw_ctrl.control_euler_rate(dt, control_input);
-					towed_att_set_yaw = (PX4_ISFINITE(yaw_u)) ? yaw_u + trim_yaw : trim_yaw;
-
+	
 					if (!PX4_ISFINITE(towed_att_set_yaw)) {
 						_yaw_ctrl.reset_integrator();
 					}
 
 				}
 
+				// 角速率指令消息发布
 				_rates_sp.roll = _roll_ctrl.get_desired_bodyrate();
 				_rates_sp.pitch = _pitch_ctrl.get_desired_bodyrate();
 				_rates_sp.yaw = _yaw_ctrl.get_desired_bodyrate();
-
 				_rates_sp.timestamp = hrt_absolute_time();
 				_rate_sp_pub.publish(_rates_sp);
-
 			} 
 
+			//控制状态信息发布
 			rate_ctrl_status_s rate_ctrl_status{};
 			rate_ctrl_status.timestamp = hrt_absolute_time();
 			rate_ctrl_status.rollspeed_integ = _roll_ctrl.get_integrator();
 			rate_ctrl_status.pitchspeed_integ = _pitch_ctrl.get_integrator();
 			rate_ctrl_status.yawspeed_integ = _yaw_ctrl.get_integrator();
 			_rate_ctrl_status_pub.publish(rate_ctrl_status);
-			//将局部变量值输出
-			//pitchERROR = control_input.pitch_setpoint - control_input.pitch; // pitch_setpoint 与 pitch.
-		        //rollERROR = control_input.roll_setpoint - control_input.roll;    // roll_setpoint  与 roll
-			//pitchRateERROR = (cosf(control_input.roll) * control_input.roll_rate_setpoint +
-			   					//cosf(control_input.pitch) * sinf(control_input.roll) * control_input.yaw_rate_setpoint)-
-								//control_input.body_y_rate;
-			//rollRateERROR = (control_input.roll_rate_setpoint - sinf(control_input.pitch) * control_input.yaw_rate_setpoint)-
-									//control_input.body_y_rate;
+			
 		}
-		// 模态切换之后需要做的事情：TODO。
+
+		// 模态切换之后需要做的事情是将积分量归零：
 		if(_pre_nav_state != _vehicle_status.nav_state){
 			_towed_y_integral = 0;
 			_towed_z_integral = 0;
@@ -462,7 +425,8 @@ void FixedwingAttitudeControl::Run()
 			_pre_nav_state = _vehicle_status.nav_state;
 
  		}
- 		// 申请函数变量
+ 		
+ 		// 申请控制量函数
  		float control_manual_0 = 0.0f;
  		float control_manual_1 = 0.0f;	
 		float control_manual_4 = 0.0f;	
@@ -477,23 +441,22 @@ void FixedwingAttitudeControl::Run()
 		default:
 		case vehicle_status_s::NAVIGATION_STATE_MANUAL:
 
-			control_manual_0 = -_manual_control_setpoint.y * (_param_fw_man_r_sc.get());// 设计为50%.
-			control_manual_0 = (PX4_ISFINITE(control_manual_0)) ? control_manual_0 + (_param_trim_roll.get()):(_param_trim_roll.get());
+			control_manual_0 = _manual_control_setpoint.y * (_param_fw_man_r_sc.get());// 设计为50%.
+			control_manual_0 = (PX4_ISFINITE(control_manual_0)) ? control_manual_0 - (_param_trim_roll.get()):(_param_trim_roll.get());
 			
-			control_manual_1 = -_manual_control_setpoint.x * _param_fw_man_p_sc.get();
-			control_manual_1 = (PX4_ISFINITE(control_manual_1)) ? control_manual_1 + _param_trim_pitch.get():_param_trim_pitch.get();
+			control_manual_1 = _manual_control_setpoint.x * _param_fw_man_p_sc.get();
+			control_manual_1 = (PX4_ISFINITE(control_manual_1)) ? control_manual_1 - _param_trim_pitch.get():_param_trim_pitch.get();
 			
-			control_manual_4= -_manual_control_setpoint.r*_param_dlc_man_y_sc.get();
-			control_manual_4 = (PX4_ISFINITE(control_manual_4)) ? control_manual_4 + _param_dlc_man_y_trim.get():_param_dlc_man_y_trim.get();
+			control_manual_4= _manual_control_setpoint.r*_param_dlc_man_y_sc.get();
+			control_manual_4 = (PX4_ISFINITE(control_manual_4)) ? control_manual_4 - _param_dlc_man_y_trim.get():_param_dlc_man_y_trim.get();
 			
-			control_manual_5 = -(_manual_control_setpoint.z*2.0f - 1.0f)* _param_dlc_man_z_sc.get();
-			control_manual_5 = (PX4_ISFINITE(control_manual_5)) ? control_manual_5 + _param_dlc_man_z_trim.get():_param_dlc_man_z_trim.get();
+			control_manual_5 = (_manual_control_setpoint.z*2.0f - 1.0f)* _param_dlc_man_z_sc.get();
+			control_manual_5 = (PX4_ISFINITE(control_manual_5)) ? control_manual_5 - _param_dlc_man_z_trim.get():_param_dlc_man_z_trim.get();
 			
 			//control_manual_0 = math::constrain(control_manual_0, -0.8f, 0.8f);
 			//control_manual_1 = math::constrain(control_manual_1, -0.8f, 0.8f);
 			//control_manual_4 = math::constrain(control_manual_4, -0.8f, 0.8f);
 			//control_manual_5 = math::constrain(control_manual_5, -0.8f, 0.8f);
-
 			_actuators.control[0] = control_manual_0; //滚转float32[8] control.. weight power _param_fw_man_r_sc.
 			_actuators.control[1] = control_manual_1; //俯仰
 			_actuators.control[2] = 0.f;          //偏航
@@ -505,19 +468,23 @@ void FixedwingAttitudeControl::Run()
 
 		case vehicle_status_s::NAVIGATION_STATE_STAB:
 
+			//手动遥控位置操纵信号
+			_y_error = _manual_control_setpoint.r; // y_error [-1 1】//遥控极性更改
+			_z_error = (_manual_control_setpoint.z*2.0f - 1.0f); //遥控极性相反
 
-			_y_error = -_manual_control_setpoint.r; // y_error [-1 1】//遥控极性更改
-			_z_error = -(_manual_control_setpoint.z*2.0f - 1.0f); //遥控极性相反
+			//输入指令量处理：位移误差量范围处理 纵向左右两侧1米的范围，垂直左右两侧0.5的范围。
+			_y_error = _y_error*1.0f;
+			_z_error = _z_error*0.5f;
 
-			_y_error = math::constrain(_y_error, -1.0f, 1.0f);// 
-			_z_error = math::constrain(_z_error, -1.0f, 1.0f);
-
-			//control_position_yz(dt);//PID P= 0.1 I =0.0f D=0.0f 加入内、外环位置保持操纵控制。
+			//激光雷达高度信号
 			_distance_sensor_sub.copy(&_CFLuna_distance);
 			_CFLuna_distance_Down = _CFLuna_distance.current_distance; //将北醒8米的测距传感器使用到这里测量高度。
+			
+			//纵向位置操纵、阻尼操纵量计算
 			direct_damp_control(dt);// 包含了获取坐标 不要调换。
 			direct_position_yz(dt);
 
+			// 按照标志位，纵向位置操纵、阻尼操纵使能
 			if(!_param_towed_posh_flag.get())
 			{
 				_y_control = 0.f;
@@ -528,47 +495,67 @@ void FixedwingAttitudeControl::Run()
 				_y_control_damp = 0.f;
 				_z_control_damp = 0.f;
 			}
-                       
 
-			 _y_control = math::constrain(_y_control,-0.6f,0.6f);;//操纵设置到60%
-			 _z_control = math::constrain(_z_control,-0.6f,0.6f);;
-
-                        _y_control_damp = math::constrain(_y_control_damp,-0.4f,0.4f);;//操纵设置到40%
-                        _z_control_damp = math::constrain(_z_control_damp, -0.4f, 0.4f);
-
-			
-			control_stab_4 = (_y_control + _y_control_damp);
+                       	// 直接力总的操纵量包含：直接操纵模块与阻尼模块（暂时权限不做处理
+                       	control_stab_4 = (_y_control + _y_control_damp);
 			control_stab_5 = (_z_control+ _z_control_damp);
-			
 
-			
-			control_stab_4 = (PX4_ISFINITE(control_stab_4)) ? (control_stab_4 + _param_dlc_man_y_trim.get()):_param_dlc_man_y_trim.get();
-
-			
-			control_stab_5 = (PX4_ISFINITE(control_stab_5)) ? (control_stab_5 + _param_dlc_man_z_trim.get()):_param_dlc_man_z_trim.get();
-
-			//control_stab_4 = math::constrain(control_stab_4, -0.8f, 0.8f);
-			//control_stab_5 = math::constrain(control_stab_5, -0.8f, 0.8f);
-			_actuators.control[0] = towed_att_set_roll;//将滚转指令取为负值。math::constrain(_roll_u, -1.0f, 1.0f); not _roll_u+ _roll_tirm;
-			_actuators.control[1] = towed_att_set_pitch;//math::constrain(_last_output, -1.0f, 1.0f);
-			
-			//航向控制
-			if (_param_towed_yctl_flag.get())
-				_actuators.control[2] = towed_att_set_yaw;
-
+			// 对操纵量按照舵面偏转极限位置进行归一化处理	
+			if (control_stab_4 >=0) //正指令后侧右偏，前侧右偏
+				control_stab_4 = control_stab_4/14.8f;
 			else
-				_actuators.control[2] = 0.0f;
-			
-			_actuators.control[3] = 0.0f;
-			_actuators.control[4] = control_stab_4;// add control 
-			_actuators.control[5] = control_stab_5;// add control 
+				control_stab_4 = control_stab_4/14.8f;
 
+			if (control_stab_5 >=0)// 正指令对应后侧下偏，前侧下偏
+				control_stab_5 =control_stab_5/24.0f;
+			else
+				control_stab_5 = control_stab_5/19.6f;
+
+			 //直接力操纵配平处理（基本使用不到，除非有预置误差			
+			control_stab_4 = (PX4_ISFINITE(control_stab_4)) ? (control_stab_4 + _param_dlc_man_y_trim.get()):_param_dlc_man_y_trim.get();
+			control_stab_5 = (PX4_ISFINITE(control_stab_5)) ? (control_stab_5 + _param_dlc_man_z_trim.get()):_param_dlc_man_z_trim.get();
+			
+			//对操纵量进行饱和处理
+			 control_stab_4 = math::constrain(control_stab_4,-1.0f,1.0f);;//限制直接力操纵舵面范围
+			 control_stab_5 = math::constrain(control_stab_5,-1.0f,1.0f);;
+			
+			 //量纲处理为角度
+			 towed_att_set_roll = towed_att_set_roll*57.3f;
+			 towed_att_set_pitch = towed_att_set_pitch*57.3f;
+			 towed_att_set_yaw = towed_att_set_yaw * 57.3f;
+
+			// 姿态操纵量按照舵面权限分配进行归一化处理
+			if (towed_att_set_roll >=0)
+				towed_att_set_roll = towed_att_set_roll/24.0f;
+			else
+				towed_att_set_roll = towed_att_set_roll/19.6f;
+
+			if (towed_att_set_pitch >=0)
+				towed_att_set_pitch =towed_att_set_pitch/18.0f;
+			else
+				towed_att_set_pitch = towed_att_set_pitch/14.7f;
+			
+			if (towed_att_set_yaw >=0)
+				towed_att_set_yaw =towed_att_set_yaw/14.8f;
+			else
+				towed_att_set_yaw = towed_att_set_yaw/14.8f;
+
+			//对操纵量进行饱和处理
+			 towed_att_set_roll = math::constrain(towed_att_set_roll,-1.0f,1.0f);;//限制直接力操纵舵面范围
+			 towed_att_set_pitch = math::constrain(towed_att_set_pitch,-1.0f,1.0f);;
+			 towed_att_set_yaw = math::constrain(towed_att_set_yaw,-1.0f,1.0f);;
+
+			 //控制量赋值
+			_actuators.control[0] = -towed_att_set_roll;
+			_actuators.control[1] = -towed_att_set_pitch;
+			_actuators.control[2] = -towed_att_set_yaw; //使用角速率控制，使能使用航向控制。
+			_actuators.control[3] = 0.0f;
+			_actuators.control[4] = -control_stab_4;// 
+			_actuators.control[5] = -control_stab_5;// 
 			break;
 
 		case vehicle_status_s::NAVIGATION_STATE_POSCTL:
-
-
-			
+			//TODO。
 				_vision_position_sub.copy(&_vision_position);
 
 				_x_error = _vision_position.vision_position_x;

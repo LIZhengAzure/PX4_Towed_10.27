@@ -144,9 +144,6 @@ private:
 
 	float _airspeed_scaling{1.0f};
 
-
-	bool _landed{true};
-
 	float _battery_scale{1.0f};
 
 
@@ -278,9 +275,6 @@ private:
 
 	void		vehicle_control_mode_poll();
 	void		vehicle_manual_poll();
-	void		vehicle_attitude_setpoint_poll();
-	void		vehicle_rates_setpoint_poll();
-	void		vehicle_land_detected_poll();
 	void 		control_position_yz(const float dt); //用于视觉位置控制。。
 	void 		direct_damp_control(const float dt);
 	void 		direct_position_yz(const float dt); // 用于直接力控制操纵量（侧向保持。移动量稳定）
